@@ -38,6 +38,24 @@ class StreamResponseTest extends TestCase
         $filename = $response->save($directory, 'custom-filename');
         $this->assertTrue(vfsStreamWrapper::getRoot()->hasChild($filename));
         $this->assertSame('custom-filename.png', $filename);
+
+        // get filename from header
+        $response = new StreamResponse(200, ['Content-Disposition' => 'attachment; filename="filename.jpg"'], file_get_contents(STUBS_ROOT.'/files/image.png'));
+        $filename = $response->save($directory);
+        $this->assertTrue(vfsStreamWrapper::getRoot()->hasChild($filename));
+        $this->assertSame('filename.jpg', $filename);
+
+        // header without name
+        $response = new StreamResponse(200, ['Content-Disposition' => 'attachment;'], file_get_contents(STUBS_ROOT.'/files/image.png'));
+        $filename = $response->save($directory);
+        $this->assertTrue(vfsStreamWrapper::getRoot()->hasChild($filename));
+        $this->assertStringEndsWith('.png', $filename);
+
+        // not writable
+        $this->expectException(\EasyWeChat\Kernel\Exceptions\InvalidArgumentException::class);
+        $this->expectExceptionMessage("'vfs://usr' is not writable.");
+        vfsStream::setup('usr', 0444);
+        $response->save(vfsStream::url('usr'));
     }
 
     public function testSaveAs()

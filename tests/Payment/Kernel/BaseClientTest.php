@@ -21,9 +21,9 @@ class BaseClientTest extends TestCase
 {
     public function testRequest()
     {
-        $app = new Application();
+        $app = new Application(['key' => '88888888888888888888888888888888']);
 
-        $client = $this->mockApiClient(BaseClient::class, ['performRequest', 'resolveResponse'], $app)->shouldDeferMissing();
+        $client = $this->mockApiClient(BaseClient::class, ['performRequest', 'castResponseToType'], $app)->shouldDeferMissing();
 
         $api = 'http://easywechat.org';
         $params = ['foo' => 'bar'];
@@ -45,7 +45,7 @@ class BaseClientTest extends TestCase
             return true;
         }))->times(3)->andReturn($mockResponse);
 
-        $client->expects()->resolveResponse()
+        $client->expects()->castResponseToType()
             ->with($mockResponse, \Mockery::any())
             ->andReturn(['foo' => 'mock-bar']);
 

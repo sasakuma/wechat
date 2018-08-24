@@ -81,17 +81,17 @@ class ClientTest extends TestCase
     public function testUploadVideoForBroadcasting()
     {
         $path = '/path/to/video.mp4';
-        $client = $this->mockApiClient(Client::class, ['uploadVideo', 'transformResponseToType', 'createVideoForBroadcasting']);
+        $client = $this->mockApiClient(Client::class, ['uploadVideo', 'detectAndCastResponseToType', 'createVideoForBroadcasting']);
         $client->allows()->uploadVideo($path)->andReturn('mock-response');
 
         // no media_id
-        $client->expects()->transformResponseToType('mock-response', 'array')->andReturn(['foo' => 'bar'])->once();
+        $client->expects()->detectAndCastResponseToType('mock-response', 'array')->andReturn(['foo' => 'bar'])->once();
         $client->shouldNotReceive('createVideoForBroadcasting');
 
         $client->uploadVideoForBroadcasting($path, 'title', 'description');
 
         // return media_id
-        $client->expects()->transformResponseToType('mock-response', 'array')->andReturn(['media_id' => 'mock-media-id'])->once();
+        $client->expects()->detectAndCastResponseToType('mock-response', 'array')->andReturn(['media_id' => 'mock-media-id'])->once();
         $client->expects()->createVideoForBroadcasting('mock-media-id', 'title', 'description')->once();
 
         $client->uploadVideoForBroadcasting($path, 'title', 'description');
@@ -128,7 +128,7 @@ class ClientTest extends TestCase
         $this->assertSame(['error' => 'invalid media id hits.'], $client->get($mediaId));
 
         $mediaId = 'valid-media-id';
-        $imageResponse = new Response(200, [], 'valid data');
+        $imageResponse = new Response(200, ['content-disposition' => 'attachment'], 'valid data');
         $client->expects()->requestRaw('media/get', 'GET', [
             'query' => [
                 'media_id' => $mediaId,
@@ -154,7 +154,7 @@ class ClientTest extends TestCase
         $this->assertSame(['error' => 'invalid media id hits.'], $client->getJssdkMedia($mediaId));
 
         $mediaId = 'valid-media-id';
-        $imageResponse = new Response(200, [], 'valid data');
+        $imageResponse = new Response(200, ['content-disposition' => 'attachment'], 'valid data');
         $client->expects()->requestRaw('media/get/jssdk', 'GET', [
             'query' => [
                 'media_id' => $mediaId,

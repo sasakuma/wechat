@@ -14,7 +14,6 @@ namespace EasyWeChat\Tests\Kernel\Server;
 use EasyWeChat\Kernel\Encryptor;
 use EasyWeChat\Kernel\Exceptions\BadRequestException;
 use EasyWeChat\Kernel\Exceptions\InvalidArgumentException;
-use EasyWeChat\Kernel\Messages\Image;
 use EasyWeChat\Kernel\Messages\NewsItem;
 use EasyWeChat\Kernel\Messages\Raw;
 use EasyWeChat\Kernel\Messages\Text;
@@ -370,7 +369,7 @@ class ServerGuardTest extends TestCase
             $this->assertSame('overtrue', $array['ToUserName']);
             $this->assertSame('easywechat', $array['FromUserName']);
             $this->assertSame('text', $array['MsgType']);
-            $this->assertTrue($array['CreateTime'] >= time());
+            $this->assertTrue($array['CreateTime'] <= time());
             $this->assertSame('hello world!', $array['Content']);
 
             return true;
@@ -410,6 +409,20 @@ class ServerGuardTest extends TestCase
         ];
         $guard->expects()->getMessage()->andReturn($message)->once();
         $guard->expects()->dispatch(ServerGuard::MESSAGE_TYPE_MAPPING['image'], $message)->andReturn('mock-response')->once();
+        $this->assertSame([
+            'to' => 'overtrue',
+            'from' => 'easywechat',
+            'response' => 'mock-response',
+        ], $guard->handleRequest());
+
+        // object message type
+        $message = new \stdClass();
+        $message->FromUserName = 'overtrue';
+        $message->ToUserName = 'easywechat';
+        $message->MsgType = 'file';
+
+        $guard->expects()->getMessage()->andReturn($message)->once();
+        $guard->expects()->dispatch(ServerGuard::MESSAGE_TYPE_MAPPING['file'], $message)->andReturn('mock-response')->once();
         $this->assertSame([
             'to' => 'overtrue',
             'from' => 'easywechat',
@@ -476,21 +489,44 @@ class ServerGuardTest extends TestCase
 
     public function testIsSafeMode()
     {
-        $request = Request::create('/path/to/resource?foo=bar', 'POST', []);
+        // signature & encrypt_type
+        $request = Request::create('/path/to/resource?foo=bar&signature=xxx&encrypt_type=aes', 'POST', []);
         $app = new ServiceContainer([
             'app_id' => 'appId',
             'token' => 'mock-token',
         ], [
             'request' => $request,
         ]);
-
         $guard = \Mockery::mock(DummyClassForServerGuardTest::class, [$app])->makePartial();
 
         $this->assertTrue($guard->isSafeMode());
+
+        // signature
+        $request = Request::create('/path/to/resource?foo=bar&signature=xxx', 'POST', []);
+        $app = new ServiceContainer([
+            'app_id' => 'appId',
+            'token' => 'mock-token',
+        ], [
+            'request' => $request,
+        ]);
+        $guard = \Mockery::mock(DummyClassForServerGuardTest::class, [$app])->makePartial();
+
+        $this->assertFalse($guard->isSafeMode());
+
+        // encrypt_type
+        $request = Request::create('/path/to/resource?foo=bar&encrypt_type=aes', 'POST', []);
+        $app = new ServiceContainer([
+            'app_id' => 'appId',
+            'token' => 'mock-token',
+        ], [
+            'request' => $request,
+        ]);
+        $guard = \Mockery::mock(DummyClassForServerGuardTest::class, [$app])->makePartial();
+
+        $this->assertFalse($guard->isSafeMode());
     }
 }
 
 class DummyClassForServerGuardTest extends ServerGuard
 {
-    protected $alwaysValidate = true;
 }

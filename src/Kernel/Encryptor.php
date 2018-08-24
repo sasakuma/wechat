@@ -109,9 +109,11 @@ class Encryptor
                 substr($this->aesKey, 0, 16),
                 OPENSSL_NO_PADDING
             ));
-        } catch (Throwable $e) { // @codeCoverageIgnore
-            throw new RuntimeException($e->getMessage(), self::ERROR_ENCRYPT_AES); // @codeCoverageIgnore
+            // @codeCoverageIgnoreStart
+        } catch (Throwable $e) {
+            throw new RuntimeException($e->getMessage(), self::ERROR_ENCRYPT_AES);
         }
+        // @codeCoverageIgnoreEnd
 
         !is_null($nonce) || $nonce = substr($this->appId, 0, 10);
         !is_null($timestamp) || $timestamp = time();

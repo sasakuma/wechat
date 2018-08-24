@@ -21,6 +21,7 @@ use EasyWeChat\Kernel\Messages\Raw as RawMessage;
 use EasyWeChat\Kernel\Messages\Text;
 use EasyWeChat\Kernel\Support\XML;
 use EasyWeChat\Kernel\Traits\Observable;
+use EasyWeChat\Kernel\Traits\ResponseCastable;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -33,7 +34,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ServerGuard
 {
-    use Observable;
+    use Observable, ResponseCastable;
 
     /**
      * @var bool
@@ -60,6 +61,7 @@ class ServerGuard
         'device_text' => Message::DEVICE_TEXT,
         'event' => Message::EVENT,
         'file' => Message::FILE,
+        'miniprogrampage' => Message::MINIPROGRAM_PAGE,
     ];
 
     /**
@@ -69,6 +71,8 @@ class ServerGuard
 
     /**
      * Constructor.
+     *
+     * @codeCoverageIgnore
      *
      * @param \EasyWeChat\Kernel\ServiceContainer $app
      */
@@ -87,6 +91,8 @@ class ServerGuard
      * @return Response
      *
      * @throws BadRequestException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
      */
     public function serve(): Response
     {
@@ -111,7 +117,7 @@ class ServerGuard
      */
     public function validate()
     {
-        if (!$this->isSafeMode()) {
+        if (!$this->alwaysValidate && !$this->isSafeMode()) {
             return $this;
         }
 
@@ -127,11 +133,25 @@ class ServerGuard
     }
 
     /**
+     * Force validate request.
+     *
+     * @return $this
+     */
+    public function forceValidate()
+    {
+        $this->alwaysValidate = true;
+
+        return $this;
+    }
+
+    /**
      * Get request message.
      *
-     * @return array
+     * @return array|\EasyWeChat\Kernel\Support\Collection|object|string
      *
      * @throws BadRequestException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
      */
     public function getMessage()
     {
@@ -156,16 +176,20 @@ class ServerGuard
                 return $dataSet;
             }
 
-            return XML::parse($message);
+            $message = XML::parse($message);
         }
 
-        return $message;
+        return $this->detectAndCastResponseToType($message, $this->app->config->get('response_type'));
     }
 
     /**
      * Resolve server request and return the response.
      *
      * @return \Symfony\Component\HttpFoundation\Response
+     *
+     * @throws \EasyWeChat\Kernel\Exceptions\BadRequestException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
      */
     protected function resolve(): Response
     {
@@ -195,7 +219,7 @@ class ServerGuard
      * @param string                                                   $from
      * @param \EasyWeChat\Kernel\Contracts\MessageInterface|string|int $message
      *
-     * @return mixed|string
+     * @return string
      *
      * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
      */
@@ -229,18 +253,21 @@ class ServerGuard
      *
      * @return array
      *
-     * @throws \EasyWeChat\Kernel\Exceptions\RuntimeException
      * @throws \EasyWeChat\Kernel\Exceptions\BadRequestException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidArgumentException
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
      */
     protected function handleRequest(): array
     {
-        $message = $this->getMessage();
+        $castedMessage = $this->getMessage();
 
-        $response = $this->dispatch(self::MESSAGE_TYPE_MAPPING[$message['MsgType'] ?? 'text'], $message);
+        $messageArray = $this->detectAndCastResponseToType($castedMessage, 'array');
+
+        $response = $this->dispatch(self::MESSAGE_TYPE_MAPPING[$messageArray['MsgType'] ?? $messageArray['msg_type'] ?? 'text'], $castedMessage);
 
         return [
-            'to' => $message['FromUserName'] ?? '',
-            'from' => $message['ToUserName'] ?? '',
+            'to' => $messageArray['FromUserName'] ?? '',
+            'from' => $messageArray['ToUserName'] ?? '',
             'response' => $response,
         ];
     }
@@ -320,10 +347,6 @@ class ServerGuard
      */
     protected function isSafeMode(): bool
     {
-        if ($this->alwaysValidate) {
-            return true;
-        }
-
         return $this->app['request']->get('signature') && 'aes' === $this->app['request']->get('encrypt_type');
     }
 

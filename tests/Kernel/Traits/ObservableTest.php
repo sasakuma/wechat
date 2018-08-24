@@ -22,6 +22,32 @@ use EasyWeChat\Tests\TestCase;
 
 class ObservableTest extends TestCase
 {
+    public function demoHandler()
+    {
+    }
+
+    public function testCallHandler()
+    {
+        $c = new DummyClassForObservableTest();
+
+        // handler interface
+        $handler = \Mockery::mock(EventHandlerInterface::class);
+        $c->push($handler);
+        $this->assertArrayHasKey('*', $c->getHandlers());
+        $this->assertInstanceOf(Closure::class, $c->getHandlers()['*'][0]);
+
+        // callable
+        $handler = [$this, 'demoHandler'];
+        $c->push($handler);
+        $this->assertSame($handler, $c->getHandlers()['*'][1]);
+
+        // function
+        $handler = function () {
+        };
+        $c->push($handler);
+        $this->assertSame($handler, $c->getHandlers()['*'][2]);
+    }
+
     public function testAddObserverWithoutEvent()
     {
         $c = new DummyClassForObservableTest();
@@ -166,12 +192,13 @@ class ObservableTest extends TestCase
     public function testNotifyWithHandlerExceptionThrown()
     {
         $exception = new Exception('handler2 exception thrown.', -204);
+        $line = __LINE__ - 1;
         $logger = \Mockery::mock('stdClass');
         $logger->expects()->error('-204: handler2 exception thrown.', [
             'code' => -204,
             'message' => 'handler2 exception thrown.',
             'file' => __FILE__,
-            'line' => 168,
+            'line' => $line,
         ])->once();
         $app = new ServiceContainer([], [
             'logger' => $logger,
@@ -279,11 +306,35 @@ class ObservableTest extends TestCase
             $this->assertSame('No valid handler is found in arguments.', $e->getMessage());
         }
     }
+
+    public function testWhereClause()
+    {
+        $c = new DummyClassForObservableTest();
+        $handler1 = \Mockery::mock(EventHandlerInterface::class);
+        $handler1->allows()->handle(['Type' => 'testing'])->andReturn('handler1-response');
+        $c->push($handler1)->where('Type', 'staging');
+
+        $this->assertNull($c->notify('foo', ['Type' => 'testing']));
+
+        $c2 = new DummyClassForObservableTest();
+        $handler2 = \Mockery::mock(EventHandlerInterface::class);
+        $handler2->allows()->handle(['Type' => 'testing'])->andReturn('handler2-response');
+        $c2->push($handler2)->where('Type', 'testing');
+
+        $this->assertSame('handler2-response', $c2->notify('foo', ['Type' => 'testing']));
+
+        $c3 = new DummyClassForObservableTest();
+        $handler3 = \Mockery::mock(EventHandlerInterface::class);
+        $handler3->allows()->handle(['Type' => 'testing', 'User' => 'user-123'])->andReturn('handler3-response');
+        $c3->push($handler3)->where('Type', 'testing')->where('User', 'user-456');
+
+        $this->assertNull($c3->notify('foo', ['Type' => 'testing', 'User' => 'user-123']));
+    }
 }
 
 class DummyHandlerClassForObservableTest implements EventHandlerInterface
 {
-    public function handle(array $payload = [])
+    public function handle($payload = null)
     {
         return 'handled';
     }

@@ -58,7 +58,7 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
      *
      * @param array $keys
      *
-     * @return array
+     * @return \EasyWeChat\Kernel\Support\Collection
      */
     public function only(array $keys)
     {
@@ -94,15 +94,17 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
      *
      * @param Collection|array $items
      *
-     * @return array
+     * @return \EasyWeChat\Kernel\Support\Collection
      */
     public function merge($items)
     {
+        $clone = new static($this->all());
+
         foreach ($items as $key => $value) {
-            $this->set($key, $value);
+            $clone->set($key, $value);
         }
 
-        return new static($this->all());
+        return $clone;
     }
 
     /**
@@ -251,8 +253,8 @@ class Collection implements ArrayAccess, Countable, IteratorAggregate, JsonSeria
      *
      * @see http://php.net/manual/en/iteratoraggregate.getiterator.php
      *
-     * @return Traversable An instance of an object implementing <b>Iterator</b> or
-     *                     <b>Traversable</b>
+     * @return \ArrayIterator An instance of an object implementing <b>Iterator</b> or
+     *                        <b>Traversable</b>
      */
     public function getIterator()
     {

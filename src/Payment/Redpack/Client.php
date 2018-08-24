@@ -24,12 +24,15 @@ class Client extends BaseClient
     /**
      * Query redpack.
      *
-     * @param array $params
+     * @param mixed $params
      *
      * @return \Psr\Http\Message\ResponseInterface|\EasyWeChat\Kernel\Support\Collection|array|object|string
+     *
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
      */
-    public function info(array $params)
+    public function info($mchBillno)
     {
+        $params = is_array($mchBillno) ? $mchBillno : ['mch_billno' => $mchBillno];
         $base = [
             'appid' => $this->app['config']->app_id,
             'bill_type' => 'MCHT',
@@ -44,6 +47,8 @@ class Client extends BaseClient
      * @param array $params
      *
      * @return \Psr\Http\Message\ResponseInterface|\EasyWeChat\Kernel\Support\Collection|array|object|string
+     *
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
      */
     public function sendNormal(array $params)
     {
@@ -62,11 +67,14 @@ class Client extends BaseClient
      * @param array $params
      *
      * @return \Psr\Http\Message\ResponseInterface|\EasyWeChat\Kernel\Support\Collection|array|object|string
+     *
+     * @throws \EasyWeChat\Kernel\Exceptions\InvalidConfigException
      */
     public function sendGroup(array $params)
     {
         $base = [
             'amt_type' => 'ALL_RAND',
+            'wxappid' => $this->app['config']->app_id,
         ];
 
         return $this->safeRequest('mmpaymkttransfers/sendgroupredpack', array_merge($base, $params));

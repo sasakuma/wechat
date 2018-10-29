@@ -9,7 +9,7 @@
  * with this source code in the file LICENSE.
  */
 
-namespace EasyWeChat\MiniProgram\Store;
+namespace EasyWeChat\MiniProgram\Plugin;
 
 use Pimple\Container;
 use Pimple\ServiceProviderInterface;
@@ -17,16 +17,21 @@ use Pimple\ServiceProviderInterface;
 /**
  * Class ServiceProvider.
  *
- * @author bigface <saybye720@gmail.com>
+ * @author mingyoung <mingyoungcheung@gmail.com>
  */
 class ServiceProvider implements ServiceProviderInterface
 {
     /**
-     * {@inheritdoc}.
+     * Registers services on the given container.
+     *
+     * This method should only be used to configure services and parameters.
+     * It should not get services.
+     *
+     * @param \Pimple\Container $pimple A container instance
      */
     public function register(Container $app)
     {
-        $app['store'] = function ($app) {
+        $app['plugin'] = function ($app) {
             return new Client($app);
         };
     }
